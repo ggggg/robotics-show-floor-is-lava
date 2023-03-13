@@ -5,7 +5,7 @@ const socketIO = require('socket.io');
 const net = require('net');
 const Player = require('./Player');
 const {
-  colors, playerWidth, playerHeight, randint,
+  colors, playerWidth, playerHeight, randint, approximatelyEqual,
 } = require('./utils');
 const GameObject = require('./GameObject');
 const state = require('./state');
@@ -26,6 +26,7 @@ io.on('connection', (socket) => {
     socket.join('host');
     socket.on('startGame', (data) => {
       console.log('Starting game');
+      state.reset();
       state.gameStarted = true;
       state.canvasDim = data.canvasDim;
       state.islands = generateIslands();
@@ -39,6 +40,7 @@ io.on('connection', (socket) => {
       state.canvasDim = {};
       console.log('Host disconnected, game stopped');
     });
+    io.in('host').emit('updatePlayers', { players: state.playerData });
     return;
   }
   console.log(`A user just connected. We have ${Object.keys(state.players).length}${1} players`);
@@ -49,13 +51,16 @@ io.on('connection', (socket) => {
       playerHeight,
       colors.find((x) => !Object.values(state.players).find((y) => y.color === x)),
     );
+    newPlayer.dead = state.gameStarted;
     state.players[socket.id] = newPlayer;
     socket.player = newPlayer;
     socket.emit('ehlo', newPlayer.data);
+    io.in('host').emit('updatePlayers', { players: state.playerData });
   }
   socket.on('disconnect', () => {
     console.log(`${state.players[socket.id].color} has disconnected`);
     delete state.players[socket.id];
+    io.in('host').emit('updatePlayers', { players: state.playerData });
   });
   socket.on('updateGyro', (data) => {
     socket.player.vx = data.gyroangleX;
@@ -121,12 +126,33 @@ const loop = () => {
       if (!x.isSafe(state.islands)) {
         console.log(`${x.color} died`);
         x.dead = true;
-        io.emit('dead', { color: x.color });
+        io.emit('dead', { color: x.color, score: x.score });
+        if (state.alivePlayers.length === 0) {
+          const result = {};
+          Object.values(state.players).forEach((y) => {
+            result[y.color] = y.score;
+          });
+          state.gameStarted = false;
+          const maxScore = Math.max(...Object.values(state.players).map((y) => y.score));
+          const filter = Object.values(state.players)
+            .filter((y) => approximatelyEqual(y.score, maxScore));
+          io.emit('gameOver', {
+            scores: result,
+            winner: filter.length === 1 ? filter[0].color : undefined,
+          });
+        }
       }
     });
   }
-  state.alivePlayers.forEach((x) => x.update());
-  io.in('host').emit('updateGame', { ...state, alivePlayers: undefined, players: state.alivePlayers.map((x) => x.data) });
+  state.alivePlayers.forEach((x) => {
+    x.update();
+    x.score += delta;
+  });
+  io.in('host').emit('updateGame', {
+    ...state,
+    alivePlayers: undefined,
+    players: state.alivePlayers.map((x) => x.data),
+  });
   // game.update(delta, tick) // game logic would go here
   tick++;
 };

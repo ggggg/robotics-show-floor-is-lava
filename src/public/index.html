@@ -3,18 +3,104 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        button {
+            font-family: Consolas, serif;
+            padding: 50px
+        }
+
         canvas {
-            border: 1px solid #d3d3d3;
+            margin: 0;
+            padding: 0;
+            /*border: 1px solid #d3d3d3;*/
+            display: block;
             background-color: #f1f1f1;
+        }
+
+        .overlay {
+            text-align: center;
+            vertical-align: middle;
+            position: fixed; /* Sit on top of the page content */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%; /* Full width (cover the whole page) */
+            height: 100%; /* Full height (cover the whole page) */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7); /* White background with opacity */
+            z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
+            cursor: pointer; /* Add a pointer on hover */
         }
     </style>
 </head>
 <body onload="startGame()">
-<button onclick="start()">Start</button>
+<div></div>
+<div id="startoverlay" class="overlay">
+    <div>
+        <h2>Players</h2>
+        <p id="players">
+        </p>
+        <button onclick="start()">Start</button>
+    </div>
+</div>
+<div id="endoverlay" class="overlay">
+    <div>
+        <h2 id="winner"></h2>
+        <div id="leaderboard">
+
+        </div>
+        <button onclick="newGame()">New Game</button>
+    </div>
+</div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+    document.getElementById("endoverlay").style.display = "none";
     let socket = io(undefined, {query: "server=true"});
     let myScore;
+
+    function newGame() {
+        myGameArea.clear()
+        document.getElementById("endoverlay").style.display = "none";
+        document.getElementById("startoverlay").style.display = "flex";
+    }
+
+    socket.on('updatePlayers', ({players}) => {
+        document.getElementById("players").innerHTML = players.reduce((a, x) => a += ` <span style="color:${x.color}">${x.color}</span>`,'')
+    })
+    socket.on('gameOver', ({winner, scores}) => {
+        document.getElementById("winner").innerText = winner ? winner + " won!" : "Game ended in a tie!";
+        document.getElementById("endoverlay").style.display = "flex";
+        const temp = Object.keys(scores).map(x => [x, scores[x]])
+        const table = document.createElement("table")
+        const row = document.createElement("tr")
+        row.innerHTML = "<th>Player</th><th>Score</th>"
+        table.append(row)
+        temp.sort((a, b) => a[1] - b[1]);
+        temp.forEach(([color, score]) => {
+            const row = document.createElement("tr")
+            row.innerHTML = `<td>${color}</td><td>${Math.round(score)}</td>`
+            table.append(row)
+        })
+        document.getElementById("leaderboard").append(table)
+
+
+    })
 
     function startGame() {
         // myGamePiece = new component(30, 30, "red", 10, 120, 0);
@@ -26,11 +112,18 @@
 
     const myGameArea = {
         canvas: document.createElement("canvas"),
+        resize: function () {
+            console.log(document.getElementsByTagName("canvas"))
+            document.getElementsByTagName("canvas")[0].width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            document.getElementsByTagName("canvas")[0].height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        },
         start: function () {
-            this.canvas.width = 480;
-            this.canvas.height = 270;
+            this.canvas.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            this.canvas.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
             this.context = this.canvas.getContext("2d");
             document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+            this.resize()
             this.frameNo = 0;
             // this.interval = setInterval(updateGameArea, 20);
         },
@@ -38,6 +131,7 @@
             this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
     }
+    window.addEventListener('resize', myGameArea.resize, false);
 
     function component(width, height, color, x, y, type, alpha = 1) {
         this.type = type;
@@ -80,6 +174,7 @@
     let lavaOn = false
     socket.emit("stopGame", {})
     const start = () => {
+        document.getElementById("startoverlay").style.display = "none";
         socket.emit("startGame", {
             gameStarted: true,
             canvasDim: {
