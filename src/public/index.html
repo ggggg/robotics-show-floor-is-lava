@@ -5,6 +5,7 @@
     <style>
         html, body {
             width: 100%;
+            font-family: Consolas,monaco,monospace;
             height: 100%;
         }
 
@@ -18,7 +19,6 @@
         }
 
         button {
-            font-family: Consolas, serif;
             padding: 50px
         }
 
@@ -97,6 +97,7 @@
             row.innerHTML = `<td>${color}</td><td>${Math.round(score)}</td>`
             table.append(row)
         })
+        document.getElementById("leaderboard").innerHTML =""
         document.getElementById("leaderboard").append(table)
 
 

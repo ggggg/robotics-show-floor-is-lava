@@ -12,6 +12,7 @@ module.exports = {
     this.islands = [];
     Object.values(this.players).forEach((x) => {
       x.dead = false;
+      x.reset();
     });
   },
   get alivePlayers() {
