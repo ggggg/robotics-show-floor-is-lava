@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+        canvas {
+            border: 1px solid #d3d3d3;
+            background-color: #f1f1f1;
+        }
+
+        .buttons {
+            background-color: red;
+            display: inline-block;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<br>
+<div style="width:100px;height: 100px;background-color: grey" id="color"></div>
+<div id="buttons">
+
+</div>
+<div class="buttons">
+    <button onmousedown="socket.emit('up_pressed')"
+            onmouseup="socket.emit('up_released')">UP
+    </button>
+    <br>
+    <button onmousedown="socket.emit('left_pressed')"
+            onmouseup="socket.emit('left_released')">LEFT
+    </button>
+    <button onmousedown="socket.emit('down_pressed')"
+            onmouseup="socket.emit('down_released')">DOWN
+    </button>
+    <button onmousedown="socket.emit('right_pressed')"
+            onmouseup="socket.emit('right_released')">RIGHT
+    </button>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    window.onblur = () => ["up", "down", "left", "right"].forEach(x => {
+        socket.emit(x + '_released')
+        Object.values(controls).map(x => x.interval).forEach(clearInterval)
+    })
+    let socket = io();
+    let player;
+    socket.on('connect', function () {
+    });
+    socket.on('ehlo', data => {
+        player = data
+        document.getElementById("color").style.backgroundColor = player.color
+    })
+    socket.on('tooManyPlayers', () => {
+        alert('Too many players, refresh page when players leave')
+        window.document.body.remove()
+        socket.disconnect()
+    })
+    socket.on('dead', ({color, score}) => {
+        if (color === player.color)
+            alert('You died! Your score: ' + score)
+    })
+    let gyroData = {
+        gyroangleX: 0,
+        gyroangleY: 0
+    }
+    const TICK_RATE = 20
+    let tickLengthMs = 1000 / TICK_RATE
+
+    const updategyro = () => {
+        setTimeout(updategyro, tickLengthMs)
+        document.getElementById("color").style.transform = 'rotate(' + gyroData.gyroangleX + 'deg) rotateX(' + gyroData.gyroangleY + 'deg)'
+        socket.emit('updateGyro', gyroData)
+    }
+    updategyro()
+    const controls = {
+        "ArrowRight": {key: "gyroangleX", speed: 1},
+        "ArrowLeft": {key: "gyroangleX", speed: -1},
+        "ArrowUp": {key: "gyroangleY", speed: -1},
+        "ArrowDown": {key: "gyroangleY", speed: 1}
+    }
+    document.body.addEventListener("keydown", (e) => {
+        if (controls[e.key]) {
+            clearInterval(controls[e.key].interval)
+            controls[e.key].interval = setInterval(() => {
+                gyroData[controls[e.key].key] += controls[e.key].speed
+            }, 10)
+        }
+    })
+    document.body.addEventListener("keyup", (e) => {
+        if (controls[e.key]) {
+            clearInterval(controls[e.key].interval)
+        }
+    })
+</script>
+</body>
+</html>
