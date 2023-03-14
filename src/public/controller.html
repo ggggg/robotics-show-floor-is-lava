@@ -36,7 +36,7 @@
             onmouseup="socket.emit('right_released')">RIGHT
     </button>
 </div>
-<script src="/socket.io/socket.io.js"></script>
+<script src="socket.io/socket.io.js"></script>
 <script>
     window.onblur = () => ["up", "down", "left", "right"].forEach(x => {
         socket.emit(x + '_released')
