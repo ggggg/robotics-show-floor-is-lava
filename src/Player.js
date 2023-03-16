@@ -25,29 +25,16 @@ class Player extends GameObject {
     this.dead = false;
   }
 
-  update() {
-    const speed = 0.1;
+  update(delta) {
+    const speed = 2 * delta;
     this.y = clamp(this.y + speed * this.vy, 0, state.canvasDim.height - this.height);
     this.x = clamp(this.x + speed * this.vx, 0, state.canvasDim.width - this.width);
   }
 
   isSafe(islands) {
-    console.log([
-      [this.x, this.y],
-      [this.x + this.width, this.y],
-      [this.x, this.y + this.height],
-      [this.x + this.width, this.y + this.height],
-    ]);
-    console.log(islands);
-    return [
-      [this.x, this.y],
-      [this.x + this.width, this.y],
-      [this.x, this.y + this.height],
-      [this.x + this.width, this.y + this.height],
-    ].every(
+    return this.corners.every(
       (x) => islands.some(
-        (island) => island.x <= x[0] && x[0] <= island.x + island.width
-                    && island.y <= x[1] && x[1] <= island.y + island.height,
+        (island) => x.inRect(island),
       ),
     );
   }

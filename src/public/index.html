@@ -91,7 +91,7 @@
         const row = document.createElement("tr")
         row.innerHTML = "<th>Player</th><th>Score</th>"
         table.append(row)
-        temp.sort((a, b) => a[1] - b[1]);
+        temp.sort((a, b) =>b[1] - a[1]);
         temp.forEach(([color, score]) => {
             const row = document.createElement("tr")
             row.innerHTML = `<td>${color}</td><td>${Math.round(score)}</td>`
@@ -199,7 +199,7 @@
             players[player.color] = new component(player.width, player.height, player.color, player.x, player.y, "player", 0.5);
         }
         for (const island of islandData) {
-            (new component(island.width, island.height, 'green', island.x, island.y)).update()
+            (new component(island.width, island.height, 'PaleGreen', island.x, island.y)).update()
         }
         for (const player in players) {
             players[player].update()

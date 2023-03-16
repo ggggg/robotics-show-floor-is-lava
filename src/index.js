@@ -23,6 +23,10 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
   // eslint-disable-next-line no-underscore-dangle
   if (socket.request._query.server) {
+    if (Object.keys(io.sockets.adapter.rooms.host ?? {}).length > 0) {
+      socket.disconnect(true);
+      return;
+    }
     socket.join('host');
     socket.on('startGame', (data) => {
       console.log('Starting game');
@@ -36,14 +40,14 @@ io.on('connection', (socket) => {
     });
     console.log('host connected');
     socket.on('disconnect', () => {
-      state.gameStarted = false;
-      state.canvasDim = {};
+      // state.gameStarted = false;
+      // state.canvasDim = {};
       console.log('Host disconnected, game stopped');
     });
     io.in('host').emit('updatePlayers', { players: state.playerData });
     return;
   }
-  console.log(`A user just connected. We have ${Object.keys(state.players).length}${1} players`);
+  console.log(`A user just connected. We have ${Object.keys(state.players).length + 1} players`);
   if (!socket.player) {
     const newPlayer = new Player(
       socket,
@@ -83,23 +87,33 @@ const hrtimeMs = function () {
   return time[0] * 1000 + time[1] / 1000000;
 };
 
-const TICK_RATE = 20;
+const TICK_RATE = 60;
 let tick = 0;
 let previous = hrtimeMs();
 const tickLengthMs = 1000 / TICK_RATE;
 
-const generateIslands = () => {
-  const w = randint(playerWidth + 5, state.canvasDim.width / 2);
-  const h = randint(playerHeight + 5, state.canvasDim.height / 2);
+const generateIsland = () => {
+  const w = randint(playerWidth + 5, state.canvasDim.width / 4);
+  const h = randint(playerHeight + 5, state.canvasDim.width / 4);
   const island = new GameObject(
     randint(0, state.canvasDim.width - w),
     randint(0, state.canvasDim.height - h),
     w,
     h,
   );
-  return [island];
+  return island;
 };
-
+const generateIslands = () => {
+  const islands = Array.from({ length: randint(1, 1) }, generateIsland);
+  // const { length } = islands;
+  // for (let i = 0; i < length; i++) {
+  //   const x = islands[i];
+  //   if (!x.corners.every((y) => islands.every((island) => island === x || !y.inRect(island)))) {
+  //     delete islands[i - (length - islands.length)];
+  //   }
+  // }
+  return islands.filter((x) => x);
+};
 const loop = () => {
   setTimeout(loop, tickLengthMs);
   const now = hrtimeMs();
@@ -145,9 +159,10 @@ const loop = () => {
     });
   }
   state.alivePlayers.forEach((x) => {
-    x.update();
+    x.update(delta);
     x.score += delta;
   });
+  console.log(`fps: ${1 / delta}`);
   io.in('host').emit('updateGame', {
     ...state,
     alivePlayers: undefined,
