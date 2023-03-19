@@ -1,8 +1,9 @@
 const GameObject = require('./GameObject');
 const { clamp } = require('./utils');
 const state = require('./state');
+const { CircularGameObject } = require('./GameObject');
 
-class Player extends GameObject {
+class Player extends CircularGameObject {
   constructor(socket, width, height, color) {
     super(0, 0, width, height);
     this.socket = socket;
@@ -32,11 +33,12 @@ class Player extends GameObject {
   }
 
   isSafe(islands) {
-    return this.corners.every(
-      (x) => islands.some(
-        (island) => x.inRect(island),
-      ),
-    );
+    return islands.some((x) => this.isSafe(x));
+    // return this.corners.every(
+    //   (x) => islands.some(
+    //     (island) => x.inRect(island),
+    //   ),
+    // );
   }
 }
 
